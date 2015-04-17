@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/histogram.qml</file>
+        <file>qml/image.png</file>
+        <file>qml/qt.png</file>
+        <file>histogram.cl</file>
+    </qresource>
+</RCC>
