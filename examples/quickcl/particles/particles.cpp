@@ -109,8 +109,6 @@ public slots:
     void handleScreenChange();
 
 private:
-    static void CL_CALLBACK computeDoneCallback(cl_event event, cl_int event_command_exec_status, void *user_data);
-    void computeDone();
     QSize itemSize() const;
     void createBuffer();
     void createFbo();
