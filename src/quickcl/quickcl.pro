@@ -7,7 +7,7 @@ DEFINES += QT_BUILD_QUICKCL_LIB
 
 HEADERS = \
     qtquickclglobal.h \
-    qquickclcontext_p.h \
+    qquickclcontext.h \
     qquickclitem.h \
     qquickclrunnable.h \
     qquickclimagerunnable.h

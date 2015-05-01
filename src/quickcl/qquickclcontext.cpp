@@ -34,7 +34,7 @@
 **
 ****************************************************************************/
 
-#include "qquickclcontext_p.h"
+#include "qquickclcontext.h"
 
 #include <QtGui/QOpenGLContext>
 #include <QtGui/QOpenGLFunctions>
@@ -45,20 +45,105 @@ QT_BEGIN_NAMESPACE
 
 Q_LOGGING_CATEGORY(logCL, "qt.quickcl")
 
+/*!
+    \class QQuickCLContext
+
+    \brief QQuickCLContext encapsulates an OpenCL context.
+
+    \note In most cases there is no need to directly interact with this class
+    as QQuickCLItem takes care of creating and destroying a QQuickCLContext
+    instance as necessary.
+
+    \note This class assumes that OpenCL 1.1 and CL-GL interop are available.
+ */
+
+class QQuickCLContextPrivate
+{
+public:
+    QQuickCLContextPrivate()
+        : platform(0),
+          device(0),
+          context(0)
+    { }
+
+    cl_platform_id platform;
+    cl_device_id device;
+    cl_context context;
+};
+
+/*!
+    Constructs a new instance of QQuickCLContext.
+
+    \note No OpenCL initialization takes place before calling create().
+ */
 QQuickCLContext::QQuickCLContext()
-    : m_platform(0),
-      m_device(0),
-      m_context(0)
+    : d_ptr(new QQuickCLContextPrivate)
 {
 }
 
+/*!
+    Destroys the instance and releases all OpenCL resources by invoking
+    destroy().
+ */
 QQuickCLContext::~QQuickCLContext()
 {
     destroy();
+    delete d_ptr;
 }
 
+/*!
+    \return \c true if the OpenCL context was successfully created.
+ */
+bool QQuickCLContext::isValid() const
+{
+    Q_D(const QQuickCLContext);
+    return d->context != 0;
+}
+
+/*!
+    \return the OpenCL platform chosen in create().
+ */
+cl_platform_id QQuickCLContext::platform() const
+{
+    Q_D(const QQuickCLContext);
+    return d->platform;
+}
+
+/*!
+    \return the OpenCL device chosen in create().
+ */
+cl_device_id QQuickCLContext::device() const
+{
+    Q_D(const QQuickCLContext);
+    return d->device;
+}
+
+/*!
+    \return the OpenCL context or \c 0 if not yet created.
+ */
+cl_context QQuickCLContext::context() const
+{
+    Q_D(const QQuickCLContext);
+    return d->context;
+}
+
+/*!
+    Creates a new OpenCL context.
+
+    If a context was already created, it is destroyed first.
+
+    An OpenGL context must be current at the time of calling this function.
+    This ensures that the OpenCL platform matching the OpenGL implementation's
+    vendor is selected and that CL-GL interop is enabled for the context.
+
+    If something fails, warnings are logged with the \c qt.quickcl category.
+
+    \return \c true if successful.
+ */
 bool QQuickCLContext::create()
 {
+    Q_D(QQuickCLContext);
+
     destroy();
     qCDebug(logCL, "Creating new OpenCL context");
 
@@ -92,7 +177,7 @@ bool QQuickCLContext::create()
         qWarning("Failed to get platform IDs");
         return false;
     }
-    m_platform = platformIds[0];
+    d->platform = platformIds[0];
     const char *vendor = (const char *) f->glGetString(GL_VENDOR);
     qCDebug(logCL, "GL_VENDOR: %s", vendor);
     const bool isNV = vendor && strstr(vendor, "NVIDIA");
@@ -105,13 +190,13 @@ bool QQuickCLContext::create()
         clGetPlatformInfo(platformIds[i], CL_PLATFORM_NAME, name.size(), name.data(), 0);
         qCDebug(logCL, "Platform %p: %s", platformIds[i], name.constData());
         if (isNV && name.contains(QByteArrayLiteral("NVIDIA")))
-            m_platform = platformIds[i];
+            d->platform = platformIds[i];
         else if (isIntel && name.contains(QByteArrayLiteral("Intel")))
-            m_platform = platformIds[i];
+            d->platform = platformIds[i];
         else if (isAMD && name.contains(QByteArrayLiteral("AMD")))
-            m_platform = platformIds[i];
+            d->platform = platformIds[i];
     }
-    qCDebug(logCL, "Using platform %p", m_platform);
+    qCDebug(logCL, "Using platform %p", d->platform);
 
 #if defined (Q_OS_OSX)
     cl_context_properties contextProps[] = { CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE,
@@ -123,12 +208,12 @@ bool QQuickCLContext::create()
         qWarning("ANGLE is not supported");
         return false;
     }
-    cl_context_properties contextProps[] = { CL_CONTEXT_PLATFORM, (cl_context_properties) m_platform,
+    cl_context_properties contextProps[] = { CL_CONTEXT_PLATFORM, (cl_context_properties) d->platform,
                                              CL_GL_CONTEXT_KHR, (cl_context_properties) wglGetCurrentContext(),
                                              CL_WGL_HDC_KHR, (cl_context_properties) wglGetCurrentDC(),
                                              0 };
 #elif defined(Q_OS_LINUX)
-    cl_context_properties contextProps[] = { CL_CONTEXT_PLATFORM, (cl_context_properties) m_platform,
+    cl_context_properties contextProps[] = { CL_CONTEXT_PLATFORM, (cl_context_properties) d->platform,
                                              CL_GL_CONTEXT_KHR, 0,
                                              0, 0,
                                              0 };
@@ -152,17 +237,17 @@ bool QQuickCLContext::create()
     }
 #endif
 
-    m_context = clCreateContextFromType(contextProps, CL_DEVICE_TYPE_GPU, 0, 0, &err);
-    if (!m_context) {
+    d->context = clCreateContextFromType(contextProps, CL_DEVICE_TYPE_GPU, 0, 0, &err);
+    if (!d->context) {
         qWarning("Failed to create OpenCL context: %d", err);
         return false;
     }
-    qCDebug(logCL, "Using context %p", m_context);
+    qCDebug(logCL, "Using context %p", d->context);
 
 #if defined(Q_OS_OSX)
-    err = clGetGLContextInfoAPPLE(m_context, CGLGetCurrentContext(),
+    err = clGetGLContextInfoAPPLE(d->context, CGLGetCurrentContext(),
                                   CL_CGL_DEVICE_FOR_CURRENT_VIRTUAL_SCREEN_APPLE,
-                                  sizeof(cl_device_id), &m_device, 0);
+                                  sizeof(cl_device_id), &d->device, 0);
     if (err != CL_SUCCESS) {
         qWarning("Failed to get OpenCL device for current screen: %d", err);
         destroy();
@@ -171,8 +256,8 @@ bool QQuickCLContext::create()
 #else
     clGetGLContextInfoKHR_fn getGLContextInfo = (clGetGLContextInfoKHR_fn) clGetExtensionFunctionAddress("clGetGLContextInfoKHR");
     if (!getGLContextInfo || getGLContextInfo(contextProps, CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR,
-                                              sizeof(cl_device_id), &m_device, 0) != CL_SUCCESS) {
-        err = clGetDeviceIDs(m_platform, CL_DEVICE_TYPE_GPU, 1, &m_device, 0);
+                                              sizeof(cl_device_id), &d->device, 0) != CL_SUCCESS) {
+        err = clGetDeviceIDs(d->platform, CL_DEVICE_TYPE_GPU, 1, &d->device, 0);
         if (err != CL_SUCCESS) {
             qWarning("Failed to get OpenCL device: %d", err);
             destroy();
@@ -180,20 +265,24 @@ bool QQuickCLContext::create()
         }
     }
 #endif
-    qCDebug(logCL, "Using device %p", m_device);
+    qCDebug(logCL, "Using device %p", d->device);
 
     return true;
 }
 
+/*!
+    Releases all OpenCL resources.
+ */
 void QQuickCLContext::destroy()
 {
-    if (m_context) {
-        qCDebug(logCL, "Releasing OpenCL context %p", m_context);
-        clReleaseContext(m_context);
-        m_context = 0;
+    Q_D(QQuickCLContext);
+    if (d->context) {
+        qCDebug(logCL, "Releasing OpenCL context %p", d->context);
+        clReleaseContext(d->context);
+        d->context = 0;
     }
-    m_device = 0;
-    m_platform = 0;
+    d->device = 0;
+    d->platform = 0;
 }
 
 QT_END_NAMESPACE

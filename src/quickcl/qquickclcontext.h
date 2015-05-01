@@ -34,15 +34,19 @@
 **
 ****************************************************************************/
 
-#ifndef QQUICKCLCONTEXT_P_H
-#define QQUICKCLCONTEXT_P_H
+#ifndef QQUICKCLCONTEXT_H
+#define QQUICKCLCONTEXT_H
 
 #include <QtQuickCL/qtquickclglobal.h>
 
 QT_BEGIN_NAMESPACE
 
-class QQuickCLContext
+class QQuickCLContextPrivate;
+
+class Q_QUICKCL_EXPORT QQuickCLContext
 {
+    Q_DECLARE_PRIVATE(QQuickCLContext)
+
 public:
     QQuickCLContext();
     ~QQuickCLContext();
@@ -50,16 +54,14 @@ public:
     bool create();
     void destroy();
 
-    bool isValid() const { return m_context != 0; }
+    bool isValid() const;
 
-    cl_platform_id platform() const { return m_platform; }
-    cl_device_id device() const { return m_device; }
-    cl_context context() const { return m_context; }
+    cl_platform_id platform() const;
+    cl_device_id device() const;
+    cl_context context() const;
 
 private:
-    cl_platform_id m_platform;
-    cl_device_id m_device;
-    cl_context m_context;
+    QQuickCLContextPrivate *d_ptr;
 };
 
 QT_END_NAMESPACE

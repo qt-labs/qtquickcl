@@ -35,7 +35,7 @@
 ****************************************************************************/
 
 #include "qquickclitem.h"
-#include "qquickclcontext_p.h"
+#include "qquickclcontext.h"
 #include <QtCore/QAtomicInt>
 #include <QtCore/QHash>
 #include <QtCore/QFile>
@@ -52,7 +52,8 @@ Q_DECLARE_LOGGING_CATEGORY(logCL)
     \brief QQuickCLItem is a QQuickItem that automatically gets an OpenCL
     context with the proper platform and device chosen for CL-GL interop.
 
-    Each instance of QQuickCLItem is backed by a corresponding QQuickCLRunnable.
+    Each instance of QQuickCLItem is backed by a QQuickCLContext and
+    QQuickCLRunnable instance.
 
      \note When animating properties that are used in OpenCL kernels, call the
      \l{QQuickItem::update()}{update()} function (from the gui thread) to
