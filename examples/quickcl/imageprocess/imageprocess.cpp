@@ -46,6 +46,7 @@
 #include <QQmlEngine>
 #include <QQuickCLItem>
 #include <QQuickCLImageRunnable>
+#include <QQuickCLContext>
 
 static bool profile = false;
 
@@ -120,9 +121,10 @@ CLRunnable::CLRunnable(CLItem *item)
       m_clProgram(0),
       m_clKernel(0)
 {
-    QByteArray platform = m_item->platformName();
+    QQuickCLContext *clctx = m_item->context();
+    QByteArray platform = clctx->platformName();
     qDebug("Using platform %s", platform.constData());
-    m_clProgram = m_item->buildProgram(openclSrc);
+    m_clProgram = clctx->buildProgram(openclSrc);
     if (!m_clProgram)
         return;
     cl_int err;

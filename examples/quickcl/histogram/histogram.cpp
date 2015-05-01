@@ -46,6 +46,7 @@
 #include <QQmlEngine>
 #include <QQuickCLItem>
 #include <QQuickCLImageRunnable>
+#include <QQuickCLContext>
 #include <QAbstractListModel>
 
 static bool profile = false;
@@ -159,9 +160,10 @@ CLRunnable::CLRunnable(CLItem *item)
       m_sharedBuf(0),
       m_doneEvent(0)
 {
-    QByteArray platform = m_item->platformName();
+    QQuickCLContext *clctx = m_item->context();
+    QByteArray platform = clctx->platformName();
     qDebug("Using platform %s", platform.constData());
-    m_program = m_item->buildProgramFromFile(QStringLiteral(":/histogram.cl"));
+    m_program = clctx->buildProgramFromFile(QStringLiteral(":/histogram.cl"));
     if (!m_program)
         return;
     cl_int err;
@@ -175,7 +177,7 @@ CLRunnable::CLRunnable(CLItem *item)
         qWarning("Failed to create sum histogram OpenCL kernel: %d", err);
         return;
     }
-    m_resultBuf = clCreateBuffer(m_item->context(), CL_MEM_WRITE_ONLY, 256 * sizeof(cl_uint), 0, &err);
+    m_resultBuf = clCreateBuffer(clctx->context(), CL_MEM_WRITE_ONLY, 256 * sizeof(cl_uint), 0, &err);
     if (!m_resultBuf) {
         qWarning("Failed to create OpenCL buffer: %d", err);
         return;
@@ -235,7 +237,7 @@ void CLRunnable::runKernel(cl_mem inImage, cl_mem, const QSize &size)
     cl_int err;
     if (!m_sharedBuf) {
         const size_t sharedBufSize = num_groups * 256 * sizeof(cl_uint);
-        m_sharedBuf = clCreateBuffer(m_item->context(), CL_MEM_READ_WRITE, sharedBufSize, 0, &err);
+        m_sharedBuf = clCreateBuffer(m_item->context()->context(), CL_MEM_READ_WRITE, sharedBufSize, 0, &err);
         if (!m_sharedBuf) {
             qWarning("Failed to create shared buffer: %d", err);
             return;

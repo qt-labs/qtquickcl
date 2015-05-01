@@ -49,6 +49,7 @@
 #include <QOpenGLShaderProgram>
 #include <QQuickCLItem>
 #include <QQuickCLRunnable>
+#include <QQuickCLContext>
 #include <time.h>
 
 const int PARTICLE_COUNT = 1024;
@@ -219,16 +220,18 @@ CLRunnable::CLRunnable(CLItem *item)
       m_lastT(-1),
       m_clBufParticleInfo(0)
 {
-    qDebug() << "Platform" << m_item->platformName() << "Device extensions" << m_item->deviceExtensions();
+    QQuickCLContext *clctx = m_item->context();
+
+    qDebug() << "Platform" << clctx->platformName() << "Device extensions" << clctx->deviceExtensions();
     cl_int err;
 
-    m_queue = clCreateCommandQueue(m_item->context(), m_item->device(), 0, &err);
+    m_queue = clCreateCommandQueue(clctx->context(), clctx->device(), 0, &err);
     if (!m_queue) {
         qWarning("Failed to create OpenCL command queue: %d", err);
         return;
     }
 
-    m_program = m_item->buildProgramFromFile(QStringLiteral(":/particles.cl"));
+    m_program = clctx->buildProgramFromFile(QStringLiteral(":/particles.cl"));
     if (!m_program)
         return;
     m_kernel = clCreateKernel(m_program, "updateParticles", &err);
@@ -237,11 +240,11 @@ CLRunnable::CLRunnable(CLItem *item)
         return;
     }
 
-    m_needsExplicitSync = !m_item->deviceExtensions().contains(QByteArrayLiteral("cl_khr_gl_event"));
+    m_needsExplicitSync = !clctx->deviceExtensions().contains(QByteArrayLiteral("cl_khr_gl_event"));
 
     // m_clBufParticleInfo is an ordinary OpenCL buffer.
     size_t velBufSize = PARTICLE_COUNT * sizeof(cl_float) * 4;
-    m_clBufParticleInfo = clCreateBuffer(m_item->context(), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, velBufSize, 0, &err);
+    m_clBufParticleInfo = clCreateBuffer(clctx->context(), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, velBufSize, 0, &err);
     if (!m_clBufParticleInfo) {
         qWarning("Failed to create CL buffer: %d", err);
         return;
@@ -292,7 +295,7 @@ void CLRunnable::createBuffer()
     if (m_node->m_clBuf)
         clReleaseMemObject(m_node->m_clBuf);
     cl_int err;
-    m_node->m_clBuf = clCreateFromGLBuffer(m_item->context(), CL_MEM_READ_WRITE, buf, &err);
+    m_node->m_clBuf = clCreateFromGLBuffer(m_item->context()->context(), CL_MEM_READ_WRITE, buf, &err);
     if (!m_node->m_clBuf)
         qWarning("Failed to create OpenCL object for OpenGL buffer: %d", err);
 }

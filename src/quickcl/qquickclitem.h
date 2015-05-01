@@ -44,6 +44,7 @@
 QT_BEGIN_NAMESPACE
 
 class QQuickCLItemPrivate;
+class QQuickCLContext;
 
 class Q_QUICKCL_EXPORT QQuickCLItem : public QQuickItem
 {
@@ -53,16 +54,9 @@ class Q_QUICKCL_EXPORT QQuickCLItem : public QQuickItem
 public:
     QQuickCLItem(QQuickItem *parent = 0);
 
-    cl_platform_id platform() const;
-    cl_device_id device() const;
-    cl_context context() const;
+    QQuickCLContext *context() const;
 
     void scheduleUpdate();
-
-    QByteArray platformName() const;
-    QByteArray deviceExtensions() const;
-    cl_program buildProgram(const QByteArray &src);
-    cl_program buildProgramFromFile(const QString &filename);
 
     void watchEvent(cl_event event);
     virtual void eventCompleted(cl_event event);

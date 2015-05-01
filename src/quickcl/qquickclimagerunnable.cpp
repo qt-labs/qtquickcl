@@ -36,6 +36,7 @@
 
 #include "qquickclimagerunnable.h"
 #include "qquickclitem.h"
+#include "qquickclcontext.h"
 #include <QSGSimpleTextureNode>
 #include <QSGTextureProvider>
 #include <QOpenGLTexture>
@@ -173,12 +174,14 @@ QQuickCLImageRunnable::QQuickCLImageRunnable(QQuickCLItem *item, Flags flags)
     Q_D(QQuickCLImageRunnable);
     cl_int err;
     cl_command_queue_properties queueProps = flags.testFlag(Profile) ? CL_QUEUE_PROFILING_ENABLE : 0;
-    d->queue = clCreateCommandQueue(item->context(), item->device(), queueProps, &err);
+    QQuickCLContext *clctx = item->context();
+    Q_ASSERT(clctx);
+    d->queue = clCreateCommandQueue(clctx->context(), clctx->device(), queueProps, &err);
     if (!d->queue) {
         qWarning("Failed to create OpenCL command queue: %d", err);
         return;
     }
-    d->needsExplicitSync = !item->deviceExtensions().contains(QByteArrayLiteral("cl_khr_gl_event"));
+    d->needsExplicitSync = !clctx->deviceExtensions().contains(QByteArrayLiteral("cl_khr_gl_event"));
 }
 
 QQuickCLImageRunnable::~QQuickCLImageRunnable()
@@ -243,9 +246,11 @@ QSGNode *QQuickCLImageRunnable::update(QSGNode *node)
         node = 0;
     }
 
+    QQuickCLContext *clctx = d->item->context();
+    Q_ASSERT(clctx);
     cl_int err = 0;
     if (!d->image[0])
-        d->image[0] = clCreateFromGLTexture2D(d->item->context(), CL_MEM_READ_ONLY, GL_TEXTURE_2D, 0,
+        d->image[0] = clCreateFromGLTexture2D(clctx->context(), CL_MEM_READ_ONLY, GL_TEXTURE_2D, 0,
                                               texture->textureId(), &err);
     if (!d->image[0]) {
         if (err == CL_INVALID_GL_OBJECT) // the texture provider may not be ready yet, try again later
@@ -264,7 +269,7 @@ QSGNode *QQuickCLImageRunnable::update(QSGNode *node)
             d->outputTexture = new QOpenGLTexture(QImage(d->textureSize, QImage::Format_RGB32));
 
         if (!d->image[1])
-            d->image[1] = clCreateFromGLTexture2D(d->item->context(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0,
+            d->image[1] = clCreateFromGLTexture2D(clctx->context(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0,
                                                   d->outputTexture->textureId(), &err);
         if (!d->image[1]) {
             qWarning("Failed to create OpenCL image object for output OpenGL texture: %d", err);

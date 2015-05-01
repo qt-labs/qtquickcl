@@ -102,6 +102,11 @@ bool QQuickCLContext::isValid() const
 
 /*!
     \return the OpenCL platform chosen in create().
+
+    \note For contexts belonging to a QQuickCLItem the value is only available
+    after the item is first rendered. It is always safe to call this function
+    from QQuickCLRunnable's constructor, destructor and
+    \l{QQuickCLRunnable::update()}{update()} function.
  */
 cl_platform_id QQuickCLContext::platform() const
 {
@@ -111,6 +116,11 @@ cl_platform_id QQuickCLContext::platform() const
 
 /*!
     \return the OpenCL device chosen in create().
+
+    \note For contexts belonging to a QQuickCLItem the value is only available
+    after the item is first rendered. It is always safe to call this function
+    from QQuickCLRunnable's constructor, destructor and
+    \l{QQuickCLRunnable::update()}{update()} function.
  */
 cl_device_id QQuickCLContext::device() const
 {
@@ -120,6 +130,11 @@ cl_device_id QQuickCLContext::device() const
 
 /*!
     \return the OpenCL context or \c 0 if not yet created.
+
+    \note For contexts belonging to a QQuickCLItem the value is only available
+    after the item is first rendered. It is always safe to call this function
+    from QQuickCLRunnable's constructor, destructor and
+    \l{QQuickCLRunnable::update()}{update()} function.
  */
 cl_context QQuickCLContext::context() const
 {
@@ -283,6 +298,103 @@ void QQuickCLContext::destroy()
     }
     d->device = 0;
     d->platform = 0;
+}
+
+/*!
+    \return the name of the current platform in use.
+
+    \note The value is valid only after create() has been called successfully.
+
+    \note For contexts belonging to a QQuickCLItem this function can only be
+    called from a QQuickCLRunnable's constructor, destructor and
+    \l{QQuickCLRunnable::update()}{update()} function, or after the item has
+    been rendered at least once.
+ */
+QByteArray QQuickCLContext::platformName() const
+{
+    QByteArray name(1024, '\0');
+    clGetPlatformInfo(platform(), CL_PLATFORM_NAME, name.size(), name.data(), 0);
+    name.resize(int(strlen(name.constData())));
+    return name;
+}
+
+/*!
+    \return the list of device extensions.
+
+    \note The value is valid only after create() has been called successfully.
+
+    \note For contexts belonging to a QQuickCLItem this function can only be
+    called from a QQuickCLRunnable's constructor, destructor and
+    \l{QQuickCLRunnable::update()}{update()} function, or after the item has
+    been rendered at least once.
+ */
+QByteArray QQuickCLContext::deviceExtensions() const
+{
+    QByteArray ext(8192, '\0');
+    clGetDeviceInfo(device(), CL_DEVICE_EXTENSIONS, ext.size(), ext.data(), 0);
+    ext.resize(int(strlen(ext.constData())));
+    return ext;
+}
+
+/*!
+    Creates and builds an OpenCL program from the source code in \a src.
+
+    \return the cl_program or \c 0 when failed. Errors and build logs are
+    printed to the warning output.
+
+    \note The value is valid only after create() has been called successfully.
+
+    \note For contexts belonging to a QQuickCLItem this function can only be
+    called from a QQuickCLRunnable's constructor, destructor and
+    \l{QQuickCLRunnable::update()}{update()} function, or after the item has
+    been rendered at least once.
+
+    \sa buildProgramFromFile()
+ */
+cl_program QQuickCLContext::buildProgram(const QByteArray &src)
+{
+    cl_int err;
+    const char *str = src.constData();
+    cl_program prog = clCreateProgramWithSource(context(), 1, &str, 0, &err);
+    if (!prog) {
+        qWarning("Failed to create OpenCL program: %d", err);
+        qWarning("Source was:\n%s", str);
+        return 0;
+    }
+    cl_device_id dev = device();
+    err = clBuildProgram(prog, 1, &dev, 0, 0, 0);
+    if (err != CL_SUCCESS) {
+        qWarning("Failed to build OpenCL program: %d", err);
+        qWarning("Source was:\n%s", str);
+        QByteArray log;
+        log.resize(8192);
+        clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, log.size(), log.data(), 0);
+        qWarning("Build log:\n%s", log.constData());
+        return 0;
+    }
+    return prog;
+}
+
+/*!
+    Creates and builds an OpenCL program from the source file \a filename.
+
+    \note The value is valid only after create() has been called successfully.
+
+    \note For contexts belonging to a QQuickCLItem this function can only be
+    called from a QQuickCLRunnable's constructor, destructor and
+    \l{QQuickCLRunnable::update()}{update()} function, or after the item has
+    been rendered at least once.
+
+    \sa buildProgram()
+ */
+cl_program QQuickCLContext::buildProgramFromFile(const QString &filename)
+{
+    QFile f(filename);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning("Failed to open OpenCL program source file %s", qPrintable(filename));
+        return 0;
+    }
+    return buildProgram(f.readAll());
 }
 
 QT_END_NAMESPACE

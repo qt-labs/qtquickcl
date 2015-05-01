@@ -60,6 +60,11 @@ public:
     cl_device_id device() const;
     cl_context context() const;
 
+    QByteArray platformName() const;
+    QByteArray deviceExtensions() const;
+    cl_program buildProgram(const QByteArray &src);
+    cl_program buildProgramFromFile(const QString &filename);
+
 private:
     QQuickCLContextPrivate *d_ptr;
 };
