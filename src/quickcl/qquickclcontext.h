@@ -38,6 +38,7 @@
 #define QQUICKCLCONTEXT_H
 
 #include <QtQuickCL/qtquickclglobal.h>
+#include <QtGui/qimage.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -62,8 +63,11 @@ public:
 
     QByteArray platformName() const;
     QByteArray deviceExtensions() const;
+
     cl_program buildProgram(const QByteArray &src);
     cl_program buildProgramFromFile(const QString &filename);
+
+    static cl_image_format toCLImageFormat(QImage::Format format);
 
 private:
     QQuickCLContextPrivate *d_ptr;

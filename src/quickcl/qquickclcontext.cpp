@@ -397,4 +397,65 @@ cl_program QQuickCLContext::buildProgramFromFile(const QString &filename)
     return buildProgram(f.readAll());
 }
 
+/*!
+    Returns a matching OpenCL image format for the given QImage \a format.
+ */
+cl_image_format QQuickCLContext::toCLImageFormat(QImage::Format format)
+{
+    cl_image_format fmt;
+
+    switch (format) {
+    case QImage::Format_Indexed8:
+        fmt.image_channel_order = CL_A;
+        fmt.image_channel_data_type = CL_UNORM_INT8;
+        break;
+
+    case QImage::Format_RGB32:
+    case QImage::Format_ARGB32:
+    case QImage::Format_ARGB32_Premultiplied:
+        if (QSysInfo::ByteOrder == QSysInfo::LittleEndian) {
+            fmt.image_channel_order = CL_BGRA;
+            fmt.image_channel_data_type = CL_UNORM_INT8;
+        } else {
+            fmt.image_channel_order = CL_ARGB;
+            fmt.image_channel_data_type = CL_UNORM_INT8;
+        }
+        break;
+
+    case QImage::Format_RGB16:
+        fmt.image_channel_order = CL_RGB;
+        fmt.image_channel_data_type = CL_UNORM_SHORT_565;
+        break;
+
+    case QImage::Format_RGB555:
+        fmt.image_channel_order = CL_RGB;
+        fmt.image_channel_data_type = CL_UNORM_SHORT_555;
+        break;
+
+    case QImage::Format_RGB888:
+        fmt.image_channel_order = CL_RGB;
+        fmt.image_channel_data_type = CL_UNORM_INT8;
+        break;
+
+    case QImage::Format_RGBX8888:
+        fmt.image_channel_order = CL_RGBx;
+        fmt.image_channel_data_type = CL_UNORM_INT8;
+        break;
+
+    case QImage::Format_RGBA8888:
+    case QImage:: Format_RGBA8888_Premultiplied:
+        fmt.image_channel_order = CL_RGBA;
+        fmt.image_channel_data_type = CL_UNORM_INT8;
+        break;
+
+    default:
+        qWarning("toCLImageFormat: Unrecognized QImage format %d", format);
+        fmt.image_channel_order = 0;
+        fmt.image_channel_data_type = 0;
+        break;
+    }
+
+    return fmt;
+}
+
 QT_END_NAMESPACE
